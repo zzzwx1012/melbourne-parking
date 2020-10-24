@@ -1,0 +1,53 @@
+#map {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 100%;
+    left:0;
+}
+
+.geocoder {
+    position:absolute;
+    z-index:1;
+    width:25%;
+    left:20px;
+    top:20px;
+}
+.mapboxgl-ctrl-geocoder { min-width:100%; }
+
+.info{
+    position: absolute;
+    font-family: "Arial Narrow", Arial, "Helvetica Condensed", Helvetica, sans-serif;
+    margin-top: 10px;
+    margin-left: 30px;
+    right:10px;
+    padding: 15px;
+    width: 30%;
+    border: 3px solid black;
+    font-size: 20px;
+    color: #222;
+    background-color: #f0f0f0;
+    border-radius: 20px 20px 20px 20px;
+}
+/*
+.info:before{
+	content: "Parking Information";
+	margin: 10px auto;
+	font-size:25px;
+	font-weight:bold;
+	color:#222;
+	line-height:30px;
+	border-bottom: 2px solid black;
+	margin-right: auto;
+	margin-left: auto;
+}	
+*/
+
+.marker {
+    background-image: url('https://geoffreychen831.github.io/parkingJson/parkingIcon.png');
+    background-size: cover;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    cursor: pointer;
+}

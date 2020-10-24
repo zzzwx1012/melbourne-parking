@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <script src="https://api.mapbox.com/mapbox-gl-js/v1.12.0/mapbox-gl.js"></script>
+    <link href="https://api.mapbox.com/mapbox-gl-js/v1.12.0/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v1.12.0/mapbox-gl.js"></script>
+    <link href="https://api.mapbox.com/mapbox-gl-js/v1.12.0/mapbox-gl.css" rel="stylesheet">
+    <link href="style.css" rel="stylesheet">
+</head>
+
+<body>
+<script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v4.5.1/mapbox-gl-geocoder.min.js"></script>
+<link
+        rel="stylesheet"
+        href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v4.5.1/mapbox-gl-geocoder.css"
+        type="text/css"
+/>
+<div id="map"></div>
+<div id= "info" class='info'>
+    <div><strong>Bay ID:</strong> <span id='bayid'></span></div>
+    <div><strong>Road segment:</strong> <span id='road_seg'></span></div>
+    <div><strong>Status:</strong> <span id='status'></span></div>
+</div>
+<div id='geocoder' class='geocoder'></div>
+
+<script>
+    mapboxgl.accessToken = 'pk.eyJ1IjoiZ2VvZmZyZXljaGVuODMxIiwiYSI6ImNrZnYxejRsdDFjY3Qyd25wanBmeHZ2bWMifQ.FEdCxEF-jOfh8ho3mhSPEQ';
+    var map = new mapboxgl.Map({
+        container: 'map',
+        style: 'mapbox://styles/geoffreychen831/ckgkg0pb6475e19pbiwxbivdp',
+        center: [144.956142, -37.806324],
+        zoom: 16.5
+    });
+
+    var geocoder = new MapboxGeocoder({
+        accessToken: mapboxgl.accessToken,
+        mapboxgl: mapboxgl,
+        //marker: false, // do not use the default marker
+        proximity: {
+            longitude: 144.956142,
+            latitude: -37.80632
+        } // the coordiantes of Melbourne Central
+    });
+
+    var bayidDisplay = document.getElementById('bayid');
+    var roadSegDisplay = document.getElementById('road_seg');
+    var statusDisplay = document.getElementById('status');
+    var info = document.getElementById('info');
+
+    document.getElementById('geocoder').appendChild(geocoder.onAdd(map));
+
+    // the bay id where the mouse is hovering over
+    var hoveredBayId = null;
+    var selectedBayId = null;
+    var selectedBayLocation = null;
+    var parkingMaker = null;
+
+    map.on('load', function() {
+        map.addSource("bays", {
+            "type": "geojson",
+            "data": "https://geoffreychen831.github.io/parkingJson/On_street_parking_aggregate.geojson",
+            "generateId": true
+        });
+
+        map.addLayer({
+            "id": "bay-fills2",
+            "type": "fill",
+            "source": "bays",
+            "layout": {},
+            "paint": {
+                'fill-color': ['match', ['get', 'status'],
+                    'Present', 'red',
+                    'Unoccupied', 'green',
+                    'white'
+                ], // default color
+                "fill-opacity": 0.5
+            },
+        });
+
+        map.addLayer({
+            "id": "bay-fills",
+            "type": "fill",
+            "source": "bays",
+            "layout": {},
+            "paint": {
+                "fill-color": "yellow",
+                "fill-opacity": ["case", ["boolean", ["feature-state", "hover"], false],
+                    1,
+                    0
+                ]
+            }
+        });
+
+
+        // When the user move their mouse within the bays, we will update the feature state
+        map.on("mousemove", "bay-fills", function(e) {
+            if (e.features.length > 0) {
+                if (hoveredBayId) {
+                    map.setFeatureState({
+                        source: 'bays',
+                        id: hoveredBayId
+                    }, {
+                        hover: false
+                    });
+                }
+                hoveredBayId = e.features[0].id;
+                map.setFeatureState({
+                    source: 'bays',
+                    id: hoveredBayId
+                }, {
+                    hover: true
+                });
+
+                // show info panel
+                bayidDisplay.textContent = e.features[0].properties.bay_id;
+                roadSegDisplay.textContent = e.features[0].properties.rd_seg_dsc;
+                if (e.features[0].properties.status == "Present") {
+                    statusDisplay.textContent = "Occupied";
+                } else {
+                    statusDisplay.textContent = e.features[0].properties.status;
+                }
+                info.style.display = "block";
+            }
+        });
+
+        // When the mouse leaves the bay-fill layer, update the feature state of the previously
+        // hovered feature
+        map.on("mouseleave", "bay-fills", function() {
+            if (hoveredBayId) {
+                map.setFeatureState({
+                    source: 'bays',
+                    id: hoveredBayId
+                }, {
+                    hover: false
+                });
+            }
+            hoveredBayId = null;
+
+            // hide info panel
+            info.style.display = "none";
+            bayidDisplay.textContent = null;
+            roadSegDisplay.textContent = null;
+            statusDisplay.textContent = null;
+        });
+
+        map.on('click', "bay-fills", function(e) {
+            if (e.features.length > 0) {
+                if (e.features[0].properties.status == "Unoccupied") {
+                    if (selectedBayId == e.features[0].id) {
+                        selectedBayId = null;
+                        selectedBayLocation = null;
+                        parkingMaker.parentNode.removeChild(parkingMaker);
+                    } else {
+                        if (selectedBayId) {
+                            selectedBayId = null;
+                            selectedBayLocation = null;
+                            parkingMaker.parentNode.removeChild(parkingMaker);
+                        }
+                        selectedBayId = e.features[0].id;
+                        selectedBayLocation = e.lngLat;
+                        parkingMaker = document.createElement('div');
+                        parkingMaker.className = 'marker';
+                        new mapboxgl.Marker(parkingMaker).setLngLat(e.lngLat).addTo(map);
+                    }
+                }
+            }
+
+        });
+
+        geocoder.on('result', function(e) {
+            // e.result.geometry; // get result of the geocoder
+        });
+
+    });
+
+</script>
+</body>
+</html>
